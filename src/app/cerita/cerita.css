@@ -1,0 +1,103 @@
+/* Gradly story. Each chapter brings its own sky; text stays dark navy, coral only for risk.
+   Display: Unbounded (wide, heavy); body: Bricolage Grotesque. */
+.story {
+  --ink: #1F3A5F; --ink-2: #3E5068; --coral: #D9481F;
+  position: fixed; inset: 0; color: var(--ink); font-family: var(--font-body), sans-serif;
+}
+.story-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30; height: 76px;
+  display: flex; align-items: center; gap: 32px; padding: 0 44px; pointer-events: none;
+}
+.story-bar > * { pointer-events: auto; }
+.story-brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-display), sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; color: var(--ink); }
+.story-bar nav { margin-left: auto; display: flex; gap: 6px; }
+.story-bar nav a { height: 40px; display: inline-flex; align-items: center; padding: 0 18px; border-radius: 999px; font-weight: 500; font-size: 15px; color: var(--ink); transition: background 200ms; }
+.story-bar nav a:hover { background: rgba(31, 58, 95, 0.1); }
+.story-bar nav a[aria-current='page'] { background: var(--ink); color: #fff; }
+.story-loading { position: fixed; inset: 0; display: grid; place-items: center; font-weight: 500; color: var(--ink-2); background: #F7DCCB; }
+
+/* chapter rail, after Cosmic: a line that grows on the active chapter */
+.story-rail { position: fixed; left: 44px; top: 50%; transform: translateY(-50%); z-index: 30; display: flex; flex-direction: column; gap: 6px; }
+.story-rail button {
+  display: flex; align-items: center; gap: 12px; height: 30px; color: var(--ink); opacity: 0.45;
+  font-family: var(--font-display), sans-serif; font-weight: 600; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+  transition: opacity 300ms;
+}
+.story-rail button i { display: block; width: 18px; height: 2px; background: currentColor; transition: width 400ms cubic-bezier(.22,1,.36,1); }
+.story-rail button .lbl { max-width: 0; overflow: hidden; white-space: nowrap; transition: max-width 400ms cubic-bezier(.22,1,.36,1); }
+.story-rail button:hover { opacity: 0.8; }
+.story-rail button:hover .lbl, .story-rail button[aria-current] .lbl { max-width: 200px; }
+.story-rail button[aria-current] { opacity: 1; }
+.story-rail button[aria-current] i { width: 44px; }
+
+/* auto-scroll player */
+.story-player {
+  position: fixed; right: 44px; bottom: 28px; z-index: 30; display: flex; align-items: center; gap: 4px; padding: 4px;
+  border-radius: 999px; background: rgba(255, 255, 255, 0.72);
+}
+.story-player button { height: 36px; padding: 0 14px; border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--ink); display: inline-flex; align-items: center; gap: 8px; transition: background 200ms, transform 120ms; }
+.story-player button:active { transform: scale(0.96); }
+.story-player .play { background: var(--ink); color: #fff; padding: 0 16px; }
+.story-player .spd[aria-pressed='true'] { background: rgba(31, 58, 95, 0.14); }
+.story-player .spd:hover { background: rgba(31, 58, 95, 0.08); }
+
+/* chapters are fixed layers over the canvas; the story driver fades and slides them from one smoothed scroll value.
+   Only links take pointer events, so the wheel always reaches the scroll area underneath. */
+.chapters { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+.chapter { position: absolute; top: 0; bottom: 0; left: 0; width: min(980px, 100%); display: flex; flex-direction: column; justify-content: center; padding: 0 44px 0 280px; opacity: 0; will-change: opacity, transform; }
+.chapter a { pointer-events: auto; }
+.chapter.right { left: auto; right: 0; width: min(760px, 100%); padding: 0 44px; text-align: right; align-items: flex-end; }
+.chapter.end { justify-content: flex-end; padding-bottom: 16vh; }
+.chapter h1, .chapter h2 {
+  font-family: var(--font-display), sans-serif; font-weight: 800; text-transform: uppercase;
+  color: var(--ink); line-height: 0.95; letter-spacing: -0.035em; text-wrap: balance;
+}
+.chapter h1 { font-size: clamp(44px, 6.2vw, 96px); }
+.chapter h2 { font-size: clamp(38px, 5.2vw, 80px); }
+.chapter p { margin-top: 28px; font-size: 21px; line-height: 1.45; color: var(--ink); max-width: 32ch; font-weight: 500; }
+.chapter.right p { margin-left: auto; }
+.chapter p.big { font-size: 23px; max-width: 28ch; }
+.chapter p b { font-family: var(--font-display), sans-serif; font-weight: 800; font-size: 1.35em; color: var(--coral); letter-spacing: -0.03em; }
+.story-btn {
+  margin-top: 28px; align-self: flex-start; height: 50px; padding: 0 26px; border-radius: 999px; display: inline-flex; align-items: center;
+  background: var(--ink); color: #fff; font-weight: 700; font-size: 16px; transition: transform 160ms, background 200ms;
+}
+.story-btn:hover { transform: translateY(-2px); background: #142a47; }
+.chapter p.act { margin-top: 18px; font-size: 17px; font-weight: 600; color: var(--ink-2); max-width: 36ch; padding-left: 14px; border-left: 3px solid var(--coral); }
+.chapter.right p.act { padding-left: 0; padding-right: 14px; border-left: 0; border-right: 3px solid var(--coral); }
+.chapter p.stat { margin-top: 18px; font-size: 18px; max-width: 34ch; }
+.chapter p.note { margin-top: 10px; font-size: 13px; font-weight: 500; color: var(--ink-2); opacity: 0.8; }
+.story-slider { pointer-events: auto; margin-top: 22px; display: flex; flex-direction: column; gap: 8px; width: min(360px, 100%); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+.story-slider input { width: 100%; accent-color: var(--coral); height: 28px; cursor: pointer; }
+.story-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.story-ctas .story-btn { pointer-events: auto; }
+.story-btn.ghost { background: rgba(255, 255, 255, 0.7); color: var(--ink); }
+.story-btn.ghost:hover { background: #fff; }
+.story-tag { color: var(--ink); font-family: var(--font-display), sans-serif; font-weight: 700; font-size: 13px; white-space: nowrap; padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, 0.8); }
+.story-tag b { color: var(--coral); margin-left: 4px; }
+.story-marks { position: fixed; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.story-mark {color: var(--ink); font-family: var(--font-display), sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.04em; white-space: nowrap; pointer-events: none; }
+.story-hud:empty { display: none; }
+.story-hud {
+  position: fixed; z-index: 30; left: 50%; bottom: 32px; transform: translateX(-50%); padding: 9px 20px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72); color: var(--ink); font-family: var(--font-display), sans-serif; font-weight: 600; font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-rail button i, .story-rail button .lbl { transition: none; }
+}
+@media (max-width: 900px) {
+  .story-rail { display: none; }
+  .chapter { padding: 0 20px; }
+  .chapter.right { padding: 0 20px; }
+}
+@media (max-width: 640px) {
+  .story-bar { padding: 0 16px; gap: 12px; }
+  .story-bar nav a:not([aria-current]) { display: none; }
+  .chapter p, .chapter p.big { font-size: 18px; }
+  .story-player { right: 16px; bottom: 16px; }
+  .story-hud { bottom: 76px; }
+}
+
+.chapter p.act span { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--coral); }
