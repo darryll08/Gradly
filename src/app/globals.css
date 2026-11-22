@@ -70,6 +70,8 @@ input, select { font: inherit; color: inherit; }
 .nav { display: flex; align-self: stretch; gap: 28px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .nav a { display: inline-flex; align-items: center; font-size: 13.5px; color: var(--muted); white-space: nowrap; border-bottom: 2px solid transparent; padding-top: 2px; transition: color 160ms var(--ease), border-color 160ms var(--ease); }
 .nav a:hover { color: var(--text); }
+.nav a.nav-gap { position: relative; margin-left: 14px; }
+.nav a.nav-gap::before { content: ''; position: absolute; left: -22px; top: 50%; width: 3px; height: 3px; border-radius: 50%; background: var(--control); }
 .nav a[aria-current="page"] { color: var(--brand); font-weight: 500; border-bottom-color: var(--brand); }
 .topbar-end { justify-self: end; display: flex; align-items: center; gap: 18px; }
 .topbar-end a.link { font-size: 13px; color: var(--muted); }

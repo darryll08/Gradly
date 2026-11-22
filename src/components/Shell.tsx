@@ -4,12 +4,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 const NAV = [
+  // Leadership pages first, then counselor pages; `.nav-gap` adds a quiet break between the two.
   { href: '/', label: 'Ringkasan' },
-  { href: '/antrian', label: 'Antrian Saya' },
-  { href: '/mahasiswa', label: 'Daftar Mahasiswa' },
-  { href: '/cek-risiko', label: 'Cek Risiko' },
   { href: '/anggaran', label: 'Simulasi Anggaran' },
   { href: '/kebijakan', label: 'Laporan & Kebijakan' },
+  { href: '/antrian', label: 'Antrian Saya', gap: true },
+  { href: '/mahasiswa', label: 'Daftar Mahasiswa' },
+  { href: '/cek-risiko', label: 'Cek Risiko' },
 ];
 
 /** Gradly mark: navy tile, white mortarboard, coral tassel dot. Shared with the /cerita story. */
@@ -40,7 +41,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <Link href="/" className="brand"><Mark size={26} /><span>Gradly<i>.</i></span></Link>
         <nav className="nav" aria-label="Navigasi">
           {NAV.map((item) => (
-            <Link key={item.href} href={item.href} aria-current={active(item.href) ? 'page' : undefined}>{item.label}</Link>
+            <Link key={item.href} href={item.href} className={item.gap ? 'nav-gap' : undefined} aria-current={active(item.href) ? 'page' : undefined}>{item.label}</Link>
           ))}
         </nav>
         <div className="topbar-end">

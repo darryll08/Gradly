@@ -287,34 +287,99 @@ function Crowd({ students, layout }: { students: Student[]; layout: Layout }) {
   );
 }
 
-// A low-poly student with a backpack, built from primitives (no model file to download).
-function Walker() {
+// The guide: one blocky student who walks the whole story and presents each chapter.
+// Where he stands per chapter: x, z, scale (bigger in the wide plaza shots) and gesture.
+type Gesture = 'wave' | 'idle' | 'point';
+const GUIDE: [number, number, number, Gesture][] = [
+  [-9, 3, 1, 'wave'],
+  [DAYS[1] * DAY + 1.4, 2.9, 1, 'idle'],
+  [DAYS[2] * DAY + 1.4, -2.9, 1, 'point'],
+  [DAYS[3] * DAY - 0.4, 4.2, 1, 'point'],
+  [PX - 3.5, 2.2, 1.3, 'point'],
+  [PX - 1.5, 3, 1.4, 'point'],
+  [PX - 5, 3, 2, 'point'],
+  [PX - 9, 6, 2.6, 'point'],
+  [PX - 8, 4, 2.1, 'point'],
+  [PX - 8.5, 6, 3.2, 'wave'],
+];
+const SKIN = '#F2C9A6', HAIR = '#3A2A22', PANTS = '#2B2F36', FACE = '#1E2A38';
+const ang = (a: number, b: number) => Math.atan2(Math.sin(b - a), Math.cos(b - a));   // shortest turn a → b
+
+function Guide() {
   const g = useRef<THREE.Group>(null);
-  const legL = useRef<THREE.Mesh>(null);
-  const legR = useRef<THREE.Mesh>(null);
-  const last = useRef(0);
-  const phase = useRef(0);
-  useFrame((_, dt) => {
-    const day = dayAt(story.offset);
-    const moving = Math.abs(day - last.current) > 1e-4;
-    last.current = day;
-    if (moving) phase.current += dt * 9;
-    const swing = moving ? Math.sin(phase.current) * 0.6 : 0;
-    if (legL.current) legL.current.rotation.z = swing;
-    if (legR.current) legR.current.rotation.z = -swing;
-    if (g.current) {
-      g.current.visible = onRoad() > 0;
-      g.current.position.x = THREE.MathUtils.damp(g.current.position.x, day * DAY + 1.4, 10, dt);
-      g.current.position.y = moving ? Math.abs(Math.sin(phase.current)) * 0.05 : 0;
-    }
+  const body = useRef<THREE.Group>(null);
+  const head = useRef<THREE.Group>(null);
+  const legL = useRef<THREE.Group>(null), legR = useRef<THREE.Group>(null);
+  const armL = useRef<THREE.Group>(null), armR = useRef<THREE.Group>(null);
+  const eyes = useRef<THREE.Group>(null);
+  const phase = useRef(0), clock = useRef(0), prev = useRef(new THREE.Vector3(GUIDE[0][0], 0, GUIDE[0][1]));
+  useFrame(({ camera }, dt) => {
+    if (!g.current) return;
+    clock.current += dt;
+    const t = clock.current;
+    const { i, w } = beat(story.offset);
+    const [ax, az, as, ag] = GUIDE[i], [bx, bz, bs, bg] = GUIDE[i + 1];
+    const x = ax + (bx - ax) * w, z = az + (bz - az) * w, s = as + (bs - as) * w;
+    const step = Math.hypot(x - prev.current.x, z - prev.current.z);
+    const walking = step > 1e-3;
+    phase.current += step * 3.2 / s;                       // stride follows distance, so fast travel = fast legs
+    g.current.position.set(x, walking ? Math.abs(Math.sin(phase.current)) * 0.06 * s : 0, z);
+    g.current.scale.setScalar(s);
+    // face where he walks; once he stops, turn to the audience
+    const face = walking ? Math.atan2(x - prev.current.x, z - prev.current.z) : Math.atan2(camera.position.x - x, camera.position.z - z);
+    g.current.rotation.y += ang(g.current.rotation.y, face) * (1 - Math.exp(-dt * (walking ? 10 : 4)));
+    prev.current.set(x, 0, z);
+
+    const swing = walking ? Math.sin(phase.current) * 0.7 : 0;
+    const gesture = w < 0.5 ? ag : bg;
+    const still = 1 - smooth(0, 0.15, Math.min(w, 1 - w)) ;     // 1 in a hold, 0 mid-travel
+    legL.current!.rotation.x = swing; legR.current!.rotation.x = -swing;
+    // arms: counter-swing while walking; in a hold the right arm waves or points, the left rests
+    armL.current!.rotation.set(-swing * 0.8, 0, -0.08);
+    const wave = gesture === 'wave' ? still : 0, point = gesture === 'point' ? still : 0;
+    armR.current!.rotation.set(swing * 0.8 * (1 - still), 0,
+      0.08 + wave * (2.7 + Math.sin(t * 7) * 0.35) + point * 1.45);
+    body.current!.scale.y = 1 + Math.sin(t * 2.2) * 0.012;  // breathing
+    head.current!.rotation.y = Math.sin(t * 0.9) * 0.12 * still + point * 0.35;   // glances toward what he points at
+    head.current!.rotation.z = Math.sin(t * 1.3) * 0.04;
+    // look up at the camera in the high plaza shots (negative x tilts the face toward the sky)
+    const lift = Math.atan2(camera.position.y - 1.4 * s, Math.hypot(camera.position.x - x, camera.position.z - z));
+    head.current!.rotation.x = -Math.min(0.55, Math.max(0, lift - 0.15)) * still;
+    eyes.current!.scale.y = t % 3.6 < 0.12 ? 0.15 : 1;    // blink
   });
+  const box = (args: [number, number, number], color: string, pos: [number, number, number] = [0, 0, 0]) => (
+    <mesh position={pos}><boxGeometry args={args} /><meshLambertMaterial color={color} /></mesh>
+  );
   return (
-    <group ref={g} position={[1.4, 0, 0.2]}>
-      <mesh position={[0, 0.95, 0]}><capsuleGeometry args={[0.22, 0.42, 4, 8]} /><meshLambertMaterial color={INK} /></mesh>
-      <mesh position={[0, 1.52, 0]}><sphereGeometry args={[0.2, 12, 10]} /><meshLambertMaterial color="#F2C9A6" /></mesh>
-      <mesh position={[-0.27, 1.0, 0]}><boxGeometry args={[0.2, 0.42, 0.36]} /><meshLambertMaterial color={CORAL} /></mesh>
-      <mesh ref={legL} position={[0, 0.5, 0.1]}><capsuleGeometry args={[0.08, 0.38, 3, 6]} /><meshLambertMaterial color="#2B2F36" /></mesh>
-      <mesh ref={legR} position={[0, 0.5, -0.1]}><capsuleGeometry args={[0.08, 0.38, 3, 6]} /><meshLambertMaterial color="#2B2F36" /></mesh>
+    <group ref={g}>
+      {/* legs pivot at the hip */}
+      <group ref={legL} position={[0.11, 0.56, 0]}>{box([0.19, 0.52, 0.22], PANTS, [0, -0.26, 0])}{box([0.2, 0.08, 0.27], '#FFFFFF', [0, -0.5, 0.02])}</group>
+      <group ref={legR} position={[-0.11, 0.56, 0]}>{box([0.19, 0.52, 0.22], PANTS, [0, -0.26, 0])}{box([0.2, 0.08, 0.27], '#FFFFFF', [0, -0.5, 0.02])}</group>
+      <group ref={body} position={[0, 0.56, 0]}>
+        {box([0.48, 0.56, 0.27], INK, [0, 0.28, 0])}
+        {box([0.3, 0.42, 0.16], CORAL, [0, 0.3, -0.2])}         {/* backpack */}
+        {box([0.06, 0.06, 0.01], '#FFFFFF', [0.13, 0.42, 0.14])}  {/* little badge */}
+      </group>
+      {/* arms pivot at the shoulder; +z rotation lifts the right arm out to the side */}
+      <group ref={armL} position={[-0.32, 1.08, 0]}>{box([0.15, 0.5, 0.18], INK, [0, -0.22, 0])}{box([0.14, 0.1, 0.16], SKIN, [0, -0.5, 0])}</group>
+      <group ref={armR} position={[0.32, 1.08, 0]}>{box([0.15, 0.5, 0.18], INK, [0, -0.22, 0])}{box([0.14, 0.1, 0.16], SKIN, [0, -0.5, 0])}</group>
+      <group ref={head} position={[0, 1.13, 0]}>
+        {box([0.44, 0.42, 0.42], SKIN, [0, 0.21, 0])}
+        {box([0.46, 0.1, 0.44], HAIR, [0, 0.45, -0.01])}         {/* hair */}
+        {box([0.46, 0.3, 0.08], HAIR, [0, 0.3, -0.2])}
+        {/* face on the +z side */}
+        <group ref={eyes} position={[0, 0.25, 0.212]}>
+          {box([0.06, 0.09, 0.01], FACE, [-0.09, 0, 0])}
+          {box([0.06, 0.09, 0.01], FACE, [0.09, 0, 0])}
+          {box([0.02, 0.025, 0.012], '#FFFFFF', [-0.075, 0.025, 0.002])}
+          {box([0.02, 0.025, 0.012], '#FFFFFF', [0.105, 0.025, 0.002])}
+        </group>
+        {box([0.09, 0.02, 0.01], HAIR, [-0.09, 0.34, 0.212])}     {/* brows */}
+        {box([0.09, 0.02, 0.01], HAIR, [0.09, 0.34, 0.212])}
+        <mesh position={[0, 0.13, 0.212]} rotation={[0, 0, Math.PI]}><torusGeometry args={[0.065, 0.014, 4, 10, Math.PI]} /><meshLambertMaterial color={FACE} /></mesh>
+        {box([0.06, 0.035, 0.01], '#F3A08A', [-0.15, 0.15, 0.212])}  {/* cheeks */}
+        {box([0.06, 0.035, 0.01], '#F3A08A', [0.15, 0.15, 0.212])}
+      </group>
     </group>
   );
 }
@@ -522,7 +587,7 @@ export default function Story({ students, stats, capacity }: { students: Student
         <World mats={mats} marks={marks} layout={layout} tiers={stats.tiers} />
         <Palette mats={mats} />
         <Crowd students={students} layout={layout} />
-        <Walker />
+        <Guide />
         <Rig />
         <Driver />
       </ScrollControls>

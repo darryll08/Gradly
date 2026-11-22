@@ -76,7 +76,10 @@ export default function Anggaran() {
             <button className="btn primary" disabled={applied} onClick={() => tim.apply(staff, perStaff)}>
               {applied ? 'Sudah diterapkan' : `Terapkan ${staff} konselor ke antrian`}
             </button>
-            <span className="small faint">Berlaku sekarang: {tim.k} konselor × {tim.per} mhs. <Link href="/antrian" style={{ textDecoration: 'underline' }}>Lihat antrian →</Link></span>
+            <Link href="/antrian" className="plan-cta" style={{ marginBottom: 0 }}>
+              <span><b>Lihat antrian</b><small>Berlaku sekarang: {tim.k} konselor × {tim.per} mhs</small></span>
+              <i aria-hidden>→</i>
+            </Link>
           </div>
           <p className="notice" style={{ marginTop: 14 }}>Konselor menangani mahasiswa mulai dari risiko tertinggi. Biaya dan tingkat keberhasilan adalah asumsi yang dapat disesuaikan.</p>
         </section>

@@ -57,7 +57,14 @@ export default function Antrian() {
       </div>
 
       <section className="section">
-        <div className="section-head"><div><span className="eyebrow risk">01 / Hubungi hari ini</span><h2>Urut dari yang paling mendesak.</h2></div></div>
+        <div className="section-head"><div><span className="eyebrow risk">01 / Hubungi hari ini</span><h2>Urut dari yang paling mendesak.</h2></div>
+          {today.length > 1 && (
+            <button className="btn primary" style={{ marginLeft: 'auto' }} disabled={busy !== null}
+              onClick={async () => { setBusy(-1); await act(today.map((s) => s.id), 'wa', 'Pesan templat massal dari antrian', { konselor: me }); setBusy(null); }}>
+              {busy === -1 ? 'Mengirim…' : `Kirim WA ke semua (${today.length})`}
+            </button>
+          )}
+        </div>
         {today.length === 0 ? <p className="notice">Semua mahasiswa dalam tanggungan sudah ditangani.</p> : (
           <ol className="queue">
             {today.map((s, i) => (

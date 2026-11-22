@@ -69,7 +69,10 @@ function Laporan() {
           </div>
         </div>
         <div>
-          <span className="lbl">Progres per konselor ({k} konselor, {per} mahasiswa)</span>
+          <span className="lbl" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <span>Progres per konselor ({k} konselor, {per} mahasiswa)</span>
+            <Link href="/anggaran" style={{ textDecoration: 'underline', textTransform: 'none', letterSpacing: 0 }}>Ubah ukuran tim →</Link>
+          </span>
           <div className="team">
             {r.team.map((t) => (
               <div key={t.name} className="team-row">
