@@ -1,86 +1,124 @@
-/* Gradly story. Each chapter brings its own sky; text stays dark navy, coral only for risk.
-   Display: Unbounded (wide, heavy); body: Bricolage Grotesque. */
+/* Gradly story, night-city look from the deck: navy sky, white text, yellow for numbers and the second headline line.
+   One family (Inter) in heavy weights for headlines. */
 .story {
-  --ink: #1F3A5F; --ink-2: #3E5068; --coral: #D9481F;
-  position: fixed; inset: 0; color: var(--ink); font-family: var(--font-body), sans-serif;
+  --navy: #16225A; --ink: #FFFFFF; --ink-2: rgba(232, 237, 255, 0.78); --yellow: #FFC21A; --orange: #FF8A1F;
+  position: fixed; inset: 0; color: var(--ink); background: var(--navy); font-family: var(--font-body), sans-serif;
 }
 .story-bar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 30; height: 76px;
   display: flex; align-items: center; gap: 32px; padding: 0 44px; pointer-events: none;
+  background: rgba(14, 22, 70, 0.45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
 }
 .story-bar > * { pointer-events: auto; }
 .story-brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-display), sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; color: var(--ink); }
 .story-bar nav { margin-left: auto; display: flex; gap: 6px; }
 .story-bar nav a { height: 40px; display: inline-flex; align-items: center; padding: 0 18px; border-radius: 999px; font-weight: 500; font-size: 15px; color: var(--ink); transition: background 200ms; }
-.story-bar nav a:hover { background: rgba(31, 58, 95, 0.1); }
-.story-bar nav a[aria-current='page'] { background: var(--ink); color: #fff; }
-.story-loading { position: fixed; inset: 0; display: grid; place-items: center; font-weight: 500; color: var(--ink-2); background: #F7DCCB; }
+.story-bar nav a:hover { background: rgba(255, 255, 255, 0.12); }
+.story-bar nav a[aria-current='page'] { background: #fff; color: var(--navy); }
+.story-loading { position: fixed; inset: 0; display: grid; place-items: center; font-weight: 500; color: var(--ink-2); background: var(--navy); }
 
-/* chapter rail, after Cosmic: a line that grows on the active chapter */
-.story-rail { position: fixed; left: 44px; top: 50%; transform: translateY(-50%); z-index: 30; display: flex; flex-direction: column; gap: 6px; }
+/* chapter rail on the right edge: a line that grows on the active chapter, its label opening to the left */
+.story-rail { position: fixed; right: 36px; top: 50%; transform: translateY(-50%); z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .story-rail button {
-  display: flex; align-items: center; gap: 12px; height: 30px; color: var(--ink); opacity: 0.45;
-  font-family: var(--font-display), sans-serif; font-weight: 600; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+  display: flex; flex-direction: row-reverse; align-items: center; gap: 12px; height: 30px; color: var(--ink); opacity: 0.45;
+  font-family: var(--font-display), sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
   transition: opacity 300ms;
 }
 .story-rail button i { display: block; width: 18px; height: 2px; background: currentColor; transition: width 400ms cubic-bezier(.22,1,.36,1); }
 .story-rail button .lbl { max-width: 0; overflow: hidden; white-space: nowrap; transition: max-width 400ms cubic-bezier(.22,1,.36,1); }
-.story-rail button:hover { opacity: 0.8; }
-.story-rail button:hover .lbl, .story-rail button[aria-current] .lbl { max-width: 200px; }
-.story-rail button[aria-current] { opacity: 1; }
+.story-rail button:hover { opacity: 0.85; }
+.story-rail button:hover .lbl { max-width: 200px; }
+.story-rail button[aria-current] { opacity: 1; color: var(--yellow); }
 .story-rail button[aria-current] i { width: 44px; }
 
 /* auto-scroll player */
 .story-player {
   position: fixed; right: 44px; bottom: 28px; z-index: 30; display: flex; align-items: center; gap: 4px; padding: 4px;
-  border-radius: 999px; background: rgba(255, 255, 255, 0.72);
+  border-radius: 999px; background: rgba(12, 20, 64, 0.72); backdrop-filter: blur(8px);
 }
 .story-player button { height: 36px; padding: 0 14px; border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--ink); display: inline-flex; align-items: center; gap: 8px; transition: background 200ms, transform 120ms; }
 .story-player button:active { transform: scale(0.96); }
-.story-player .play { background: var(--ink); color: #fff; padding: 0 16px; }
-.story-player .spd[aria-pressed='true'] { background: rgba(31, 58, 95, 0.14); }
-.story-player .spd:hover { background: rgba(31, 58, 95, 0.08); }
+.story-player .play { background: var(--yellow); color: var(--navy); padding: 0 16px; }
+.story-player .spd[aria-pressed='true'] { background: rgba(255, 255, 255, 0.16); }
+.story-player .spd:hover { background: rgba(255, 255, 255, 0.1); }
 
 /* chapters are fixed layers over the canvas; the story driver fades and slides them from one smoothed scroll value.
-   Only links take pointer events, so the wheel always reaches the scroll area underneath. */
+   Only links take pointer events, so the wheel always reaches the scroll area underneath. Text always sits left. */
 .chapters { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
-.chapter { position: absolute; top: 0; bottom: 0; left: 0; width: min(980px, 100%); display: flex; flex-direction: column; justify-content: center; padding: 0 44px 0 280px; opacity: 0; will-change: opacity, transform; }
+.chapter {
+  position: absolute; top: 0; bottom: 0; left: 0; width: min(46vw, 760px); display: flex; flex-direction: column; justify-content: center;
+  padding: 0 0 0 clamp(20px, 6.8vw, 140px); opacity: 0; will-change: opacity, transform;
+  text-shadow: 0 2px 18px rgba(10, 16, 52, 0.55);
+}
 .chapter a { pointer-events: auto; }
-.chapter.right { left: auto; right: 0; width: min(760px, 100%); padding: 0 44px; text-align: right; align-items: flex-end; }
-.chapter.end { justify-content: flex-end; padding-bottom: 16vh; }
 .chapter h1, .chapter h2 {
   font-family: var(--font-display), sans-serif; font-weight: 800; text-transform: uppercase;
-  color: var(--ink); line-height: 0.95; letter-spacing: -0.035em; text-wrap: balance;
+  color: var(--ink); line-height: 1.02; letter-spacing: -0.02em;
 }
-.chapter h1 { font-size: clamp(44px, 6.2vw, 96px); }
-.chapter h2 { font-size: clamp(38px, 5.2vw, 80px); }
-.chapter p { margin-top: 28px; font-size: 21px; line-height: 1.45; color: var(--ink); max-width: 32ch; font-weight: 500; }
-.chapter.right p { margin-left: auto; }
-.chapter p.big { font-size: 23px; max-width: 28ch; }
-.chapter p b { font-family: var(--font-display), sans-serif; font-weight: 800; font-size: 1.35em; color: var(--coral); letter-spacing: -0.03em; }
+.chapter h1 em, .chapter h2 em { font-style: normal; color: var(--yellow); }
+.chapter h2 em { display: block; }
+.chapter h2 em.solo { display: inline; }
+.chapter h1 { font-size: clamp(40px, 5.6vw, 104px); }
+.chapter h1 em { display: block; }
+.chapter h2 { font-size: clamp(38px, 5.6vw, 104px); }
+.chapter p { margin-top: clamp(20px, 2.4vw, 40px); font-size: clamp(17px, 1.85vw, 30px); line-height: 1.45; color: var(--ink); max-width: 31ch; font-weight: 500; }
+.chapter p.big { max-width: 31ch; }
+.chapter p b { font-weight: 800; color: var(--yellow); }
+.chapter p.act {
+  margin-top: clamp(16px, 1.8vw, 28px); font-size: clamp(15px, 1.5vw, 24px); font-weight: 500; color: var(--ink); max-width: 36ch;
+  padding-left: 16px; border-left: 3px solid var(--yellow);
+}
+.chapter p.act span { display: block; margin-bottom: 4px; font-size: 0.6em; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--yellow); }
+.chapter p.reach { margin-top: clamp(12px, 1.4vw, 22px); font-size: clamp(15px, 1.5vw, 24px); max-width: 34ch; }
+.chapter p.note { margin-top: 10px; font-size: clamp(11px, 0.9vw, 14px); font-weight: 500; color: var(--ink-2); }
+.chapter.end { justify-content: flex-end; padding-bottom: 14vh; }
+/* last chapter: headline and text sit higher, the buttons stay where they are */
+.chapter.end .story-ctas { margin-top: clamp(48px, 12vh, 140px); }
+
+.story-slider {
+  pointer-events: auto; margin-top: clamp(12px, 1.4vw, 22px); display: flex; flex-direction: column; gap: 6px; width: min(280px, 100%);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2);
+}
+.story-slider input { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; cursor: pointer; }
+.story-slider input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--yellow) var(--fill, 0%), rgba(255, 255, 255, 0.25) var(--fill, 0%)); }
+.story-slider input::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); }
+.story-slider input::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--yellow); }
+.story-slider input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: var(--yellow); border: 3px solid var(--navy); }
+.story-slider input::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--yellow); border: 3px solid var(--navy); }
+.story-slider input:focus-visible { outline: 2px solid var(--yellow); outline-offset: 4px; border-radius: 4px; }
+
+.story-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: clamp(20px, 2.2vw, 34px); }
 .story-btn {
-  margin-top: 28px; align-self: flex-start; height: 50px; padding: 0 26px; border-radius: 999px; display: inline-flex; align-items: center;
-  background: var(--ink); color: #fff; font-weight: 700; font-size: 16px; transition: transform 160ms, background 200ms;
+  pointer-events: auto; height: 50px; padding: 0 26px; border-radius: 999px; display: inline-flex; align-items: center;
+  background: var(--yellow); color: var(--navy); font-weight: 700; font-size: 16px; text-shadow: none; transition: transform 160ms, background 200ms;
 }
-.story-btn:hover { transform: translateY(-2px); background: #142a47; }
-.chapter p.act { margin-top: 18px; font-size: 17px; font-weight: 600; color: var(--ink-2); max-width: 36ch; padding-left: 14px; border-left: 3px solid var(--coral); }
-.chapter.right p.act { padding-left: 0; padding-right: 14px; border-left: 0; border-right: 3px solid var(--coral); }
-.chapter p.stat { margin-top: 18px; font-size: 18px; max-width: 34ch; }
-.chapter p.note { margin-top: 10px; font-size: 13px; font-weight: 500; color: var(--ink-2); opacity: 0.8; }
-.story-slider { pointer-events: auto; margin-top: 22px; display: flex; flex-direction: column; gap: 8px; width: min(360px, 100%); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
-.story-slider input { width: 100%; accent-color: var(--coral); height: 28px; cursor: pointer; }
-.story-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
-.story-ctas .story-btn { pointer-events: auto; }
-.story-btn.ghost { background: rgba(255, 255, 255, 0.7); color: var(--ink); }
-.story-btn.ghost:hover { background: #fff; }
-.story-tag { color: var(--ink); font-family: var(--font-display), sans-serif; font-weight: 700; font-size: 13px; white-space: nowrap; padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, 0.8); }
-.story-tag b { color: var(--coral); margin-left: 4px; }
+.story-btn:hover { transform: translateY(-2px); background: #FFD452; }
+.story-btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6); }
+.story-btn.ghost:hover { background: rgba(255, 255, 255, 0.1); }
+.story-btn:focus-visible, .story-rail button:focus-visible, .story-player button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
+
+/* labels inside the 3D scene */
 .story-marks { position: fixed; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
-.story-mark {color: var(--ink); font-family: var(--font-display), sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.04em; white-space: nowrap; pointer-events: none; }
+.story-mark { color: var(--ink); font-family: var(--font-display), sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.02em; white-space: nowrap; pointer-events: none; }
+.story-gate {
+  color: #fff; font-family: var(--font-display), sans-serif; font-weight: 800; font-size: clamp(16px, 2.2vw, 40px); letter-spacing: -0.01em;
+  white-space: nowrap; padding: 0.18em 0.6em; border-radius: 999px; background: rgba(14, 22, 70, 0.78);
+}
+.story-tier {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; color: #fff; text-align: center;
+  font-family: var(--font-display), sans-serif; font-weight: 800; font-size: clamp(14px, 1.7vw, 30px); white-space: nowrap;
+  text-shadow: 0 2px 12px rgba(10, 16, 52, 0.6);
+}
+.story-tier b { font-size: 0.85em; }
+.story-chip {
+  color: var(--yellow); font-family: var(--font-display), sans-serif; font-weight: 800; font-size: clamp(10px, 0.85vw, 14px); white-space: nowrap;
+  padding: 2px 7px; border-radius: 999px; background: rgba(14, 22, 70, 0.85);
+}
 .story-hud:empty { display: none; }
 .story-hud {
   position: fixed; z-index: 30; left: 50%; bottom: 32px; transform: translateX(-50%); padding: 9px 20px; border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72); color: var(--ink); font-family: var(--font-display), sans-serif; font-weight: 600; font-size: 14px;
+  background: rgba(12, 20, 64, 0.72); backdrop-filter: blur(8px); color: var(--ink); font-family: var(--font-display), sans-serif; font-weight: 700; font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -89,15 +127,12 @@
 }
 @media (max-width: 900px) {
   .story-rail { display: none; }
-  .chapter { padding: 0 20px; }
-  .chapter.right { padding: 0 20px; }
+  .chapter { width: 100%; padding: 0 20px; justify-content: flex-start; padding-top: 96px; }
+  .chapter.end { justify-content: flex-start; padding-bottom: 0; }
 }
 @media (max-width: 640px) {
   .story-bar { padding: 0 16px; gap: 12px; }
   .story-bar nav a:not([aria-current]) { display: none; }
-  .chapter p, .chapter p.big { font-size: 18px; }
   .story-player { right: 16px; bottom: 16px; }
   .story-hud { bottom: 76px; }
 }
-
-.chapter p.act span { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--coral); }
