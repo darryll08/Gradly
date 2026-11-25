@@ -29,9 +29,21 @@ const SP = 0.2;             // spacing between figures in a formation
 const LAYER = 0.5;          // height of one layer in a bar
 const FIG = 1.45;           // size of one crowd figure
 const START = -11;          // the day-1 gate, behind the waiting crowd
-const PER_COUNSELOR = 80;
-const QUEUE_SHOWN = 2400;
-const MARK_HALF = 3.3;     // half width of the Gradly mark in the last chapter: inside the road   // students of the risk queue standing on the road in the capacity chapter   // students one counselor can follow up in a semester
+const PER_COUNSELOR = 80;  // students one counselor can follow up in a semester
+const MARK_HALF = 3.3;     // half width of the Gradly mark in the last chapter: inside the road
+
+// Capacity chapter: counselor desks. Every counselor stands in front of their own queue; one figure there stands
+// for REP students, so a queue of 4 figures is one counselor's 80. At-risk students nobody reaches wait,
+// faded, in a crowd to the right; it shrinks from the left as counselors are added.
+// Desks and crowd together stay inside the road (|sx - PX| < 3.3).
+const REP = 20;
+const MAX_COUNSELORS = 40;
+const DESKS_PER_ROW = 8;
+const DESK_W = 0.42, DESK_D = 2.2, DESK_X0 = PX - 3, DESK_Z0 = 3;    // stage: first desk, rows go back
+const QUEUE_GAP = 0.45, QUEUE_STEP = 0.3;                          // counselor → first student, student → next
+const WAIT_X0 = DESK_X0 + (DESKS_PER_ROW - 1) * DESK_W + 0.6, WAIT_ROWS = 22, WAIT_SP = 0.27;
+const COUNSELOR_S = 0.3;
+const deskSpot = (u: number) => [DESK_X0 + (u % DESKS_PER_ROW) * DESK_W, DESK_Z0 - Math.floor(u / DESKS_PER_ROW) * DESK_D] as const;
 
 // night palette (from the deck)
 const YELLOW = '#FFC21A', ORANGE = '#FF8A1F', SKY_BLUE = '#8CC4FF', WHITE = '#F2F4FA', FADE = '#3D4C8C', STONE = '#C7CCDD';
@@ -140,14 +152,7 @@ function useLayout(students: Student[]): Layout {
     });
     F[6] = f6;
 
-    // 7: one queue ordered by predicted risk, the riskiest in the front row
-    const f7 = new Float32Array(n * 3);
-    const cols = 48;
-    students.forEach((_, i) => {
-      const r = rank[i];
-      put(f7, i, T(PX + ((r % cols) - (cols - 1) / 2) * SP, 0, 4 - Math.floor(r / cols) * SP));
-    });
-    F[7] = f7;
+    // 7 (capacity) depends on the counselor slider, so the crowd places it every frame (see deskTarget)
 
     // 9: the crowd forms the Gradly mark (mortarboard + tassel), riskiest students in the tassel
     const inMark = (x: number, y: number) =>
@@ -240,14 +245,29 @@ function figureMaterial() {
   return m;
 }
 
-function Crowd({ students, layout }: { students: Student[]; layout: Layout }) {
+// Where the student of risk rank r stands in the capacity chapter when `cap` students are reached.
+// Every group of REP students shares the spot of its first one (the others shrink into it).
+function deskTarget(r: number, cap: number, out: Float32Array, o: number) {
+  const j = Math.floor(r / REP) * REP;
+  let p: [number, number, number];
+  if (j < cap) {
+    const [sx, sz] = deskSpot(Math.floor(j / PER_COUNSELOR));
+    p = T(sx, 0, sz - QUEUE_GAP - ((j % PER_COUNSELOR) / REP) * QUEUE_STEP);
+  } else {
+    const w = (j - cap) / REP;   // place in the waiting crowd, filled column by column from the desks outwards
+    p = T(WAIT_X0 + Math.floor(w / WAIT_ROWS) * WAIT_SP, 0, DESK_Z0 - (w % WAIT_ROWS) * WAIT_SP);
+  }
+  out[o] = p[0]; out[o + 1] = p[1]; out[o + 2] = p[2];
+}
+
+function Crowd({ students, layout, atRisk }: { students: Student[]; layout: Layout; atRisk: number }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const geo = useMemo(figureGeometry, []);
   const mat = useMemo(figureMaterial, []);
   const C = useMemo(() => ({
-    yellow: new THREE.Color(YELLOW), orange: new THREE.Color(ORANGE), blue: new THREE.Color(SKY_BLUE),
-    fade: new THREE.Color(FADE), stone: new THREE.Color(STONE), imdSafe: new THREE.Color('#5B8DEF'),
+    yellow: new THREE.Color(YELLOW), orange: new THREE.Color(ORANGE), blue: new THREE.Color(SKY_BLUE), white: new THREE.Color(WHITE),
+    fade: new THREE.Color(FADE), wait: new THREE.Color('#7483C4'), stone: new THREE.Color(STONE), imdSafe: new THREE.Color('#5B8DEF'),
     tier: Object.fromEntries(TIERS.map((t) => [t, new THREE.Color(TIER_HEX[t])])) as Record<Tier, THREE.Color>,
   }), []);
   const ca = useMemo(() => new THREE.Color(), []);
@@ -255,6 +275,8 @@ function Crowd({ students, layout }: { students: Student[]; layout: Layout }) {
   const pa = useMemo(() => new Float32Array(3), []);
   const pb = useMemo(() => new Float32Array(3), []);
   const { spot, F, rank, tassel } = layout;
+  // capacity chapter: spot and visibility follow the slider, eased so the queues fill up instead of jumping
+  const desk = useMemo(() => ({ at: new Float32Array(students.length * 3), on: new Float32Array(students.length), to: new Float32Array(3), ready: false }), [students]);
 
   // shirt colour of student i in chapter c (day only matters on the road):
   // on the road, yellow = predicted to fail, light blue = predicted to pass, orange = stopped being active
@@ -269,15 +291,17 @@ function Crowd({ students, layout }: { students: Student[]; layout: Layout }) {
     if (c === 4) return out.copy(s.ghost ? C.orange : C.fade);
     if (c === 5) return out.copy(s.att > 0 ? C.yellow : C.fade);
     if (c === 6) return out.copy(C.tier[s.tier]);
-    if (c === 7) return out.copy(rank[i] < story.capacity ? C.orange : C.fade);
+    // reached and at risk = orange; reached but probably fine (the slider went past the at-risk group) = white
+    if (c === 7) return out.copy(rank[i] >= story.capacity ? C.wait : rank[i] < atRisk ? C.orange : C.white);
     if (c === 8) return out.copy(s.pred === 1 ? C.yellow : C.imdSafe);
     return out.copy(rank[i] < tassel ? C.orange : C.stone);
   };
   // whether student i stands in chapter c's picture (the twin and repeater shots show only their group)
-  // (the capacity shot shows the front of the risk queue only)
-  const shown = (c: number, i: number) => (c === 4 ? +students[i].ghost : c === 5 ? +(students[i].att > 0) : c === 7 ? +(rank[i] < QUEUE_SHOWN) : 1);
+  // (the capacity shot shows one figure per REP at-risk students, plus whoever the counselors reach)
+  const shown = (c: number, i: number) => (c === 4 ? +students[i].ghost : c === 5 ? +(students[i].att > 0) : c === 7 ? desk.on[i] : 1);
   // position of student i in chapter c
   const place = (c: number, i: number, day: number, out: Float32Array) => {
+    if (c === 7) { out[0] = desk.at[i * 3]; out[1] = desk.at[i * 3 + 1]; out[2] = desk.at[i * 3 + 2]; return; }
     const f = F[c];
     if (f) { out[0] = f[i * 3]; out[1] = f[i * 3 + 1]; out[2] = f[i * 3 + 2]; return; }
     const s = students[i], { z, lag } = spot[i];
@@ -288,10 +312,18 @@ function Crowd({ students, layout }: { students: Student[]; layout: Layout }) {
     out[2] = z;
   };
 
-  useFrame(({ clock, camera }) => {
+  useFrame(({ clock, camera }, dt) => {
     const m = ref.current;
     if (!m) return;
     if (!m.instanceColor) m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(students.length * 3), 3);
+    const cap = story.capacity, ease = desk.ready ? 1 - Math.exp(-dt * 5) : 1;
+    for (let i = 0; i < students.length; i++) {
+      const r = rank[i];
+      deskTarget(r, cap, desk.to, 0);
+      for (let k = 0; k < 3; k++) desk.at[i * 3 + k] += (desk.to[k] - desk.at[i * 3 + k]) * ease;
+      desk.on[i] += (+(r % REP === 0 && (r < atRisk || r < cap)) - desk.on[i]) * ease;
+    }
+    desk.ready = true;
     const { i: c, w } = beat(story.offset);
     const day = dayAt(story.offset);
     const tt = clock.elapsedTime;
@@ -340,7 +372,7 @@ const GUIDE: [number, number, number, Gesture][] = [
   g4(PX - 4.6, 1.5, 1.3, 'point'),
   g4(PX, 0, 1.1, 'idle'),
   g4(PX - 7, 6.5, 2, 'point'),
-  g4(PX + 2.2, 8.5, 1.7, 'wave'),
+  g4(PX + 0.9, 5, 0.8, 'point'),   // in front of the waiting crowd, pointing at the desks
   g4(PX - 7.8, 8, 2, 'point'),
   g4(PX - 3.9, 2.8, 1.7, 'point'),
 ];
@@ -426,6 +458,58 @@ function Guide() {
   );
 }
 
+// Capacity chapter: one small counselor (dressed like the guide) at the head of every queue.
+// They step in one by one as the slider adds counselors, and only stand while that chapter is near.
+function counselorGeometry() {
+  const parts: [number, number, number, number, number, number, string][] = [
+    // w, h, d, x, y, z, colour (guide proportions, feet at y = 0, face towards +z)
+    [0.19, 0.56, 0.22, -0.11, 0.28, 0, PANTS], [0.19, 0.56, 0.22, 0.11, 0.28, 0, PANTS],
+    [0.48, 0.56, 0.27, 0, 0.84, 0, SUIT],
+    [0.14, 0.3, 0.01, 0, 0.97, 0.137, '#FFFFFF'], [0.05, 0.27, 0.012, 0, 0.94, 0.144, YELLOW],
+    [0.15, 0.5, 0.18, -0.32, 0.86, 0, SUIT], [0.15, 0.5, 0.18, 0.32, 0.86, 0, SUIT],
+    [0.14, 0.1, 0.16, -0.32, 0.58, 0, SKIN], [0.14, 0.1, 0.16, 0.32, 0.58, 0, SKIN],
+    [0.44, 0.42, 0.42, 0, 1.34, 0, SKIN],
+    [0.46, 0.1, 0.44, 0, 1.58, -0.01, HAIR], [0.46, 0.3, 0.08, 0, 1.43, -0.2, HAIR],
+    [0.06, 0.09, 0.01, -0.09, 1.38, 0.212, FACE], [0.06, 0.09, 0.01, 0.09, 1.38, 0.212, FACE],
+  ];
+  const c = new THREE.Color();
+  return mergeGeometries(parts.map(([w, h, d, x, y, z, col]) => {
+    const g = new THREE.BoxGeometry(w, h, d).toNonIndexed();
+    g.translate(x, y, z);
+    c.set(col).convertSRGBToLinear();
+    g.setAttribute('color', new THREE.Float32BufferAttribute(Array.from({ length: g.attributes.position.count }, () => [c.r, c.g, c.b]).flat(), 3));
+    g.deleteAttribute('uv');
+    g.scale(COUNSELOR_S, COUNSELOR_S, COUNSELOR_S);
+    return g;
+  }))!;
+}
+function Counselors() {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  const geo = useMemo(counselorGeometry, []);
+  const mat = useMemo(() => new THREE.MeshLambertMaterial({ vertexColors: true }), []);
+  const on = useMemo(() => new Float32Array(MAX_COUNSELORS), []);
+  const d = useMemo(() => new THREE.Object3D(), []);
+  useFrame(({ camera }, dt) => {
+    const m = ref.current;
+    if (!m) return;
+    const near = 1 - smooth(0.3, 0.55, Math.abs(story.offset * (PAGES - 1) - 7));
+    const k = Math.ceil(story.capacity / PER_COUNSELOR), ease = 1 - Math.exp(-dt * 6);
+    for (let u = 0; u < MAX_COUNSELORS; u++) {
+      on[u] += (+(u < k) - on[u]) * ease;
+      const [sx, sz] = deskSpot(u);
+      const [x, , z] = T(sx, 0, sz);
+      d.position.set(x, 0, z);
+      d.rotation.y = Math.atan2(camera.position.x - x, camera.position.z - z);
+      d.scale.setScalar(Math.max(1e-4, on[u] * near));
+      d.updateMatrix();
+      m.setMatrixAt(u, d.matrix);
+    }
+    m.instanceMatrix.needsUpdate = true;
+    m.visible = near > 0.001;
+  });
+  return <instancedMesh ref={ref} args={[geo, mat, MAX_COUNSELORS]} frustumCulled={false} />;
+}
+
 // A prop that stands only while one of its chapters is on screen (it appears and disappears mid-travel).
 function InChapters({ ch, children }: { ch: number[]; children: React.ReactNode }) {
   const g = useRef<THREE.Group>(null);
@@ -436,12 +520,13 @@ function InChapters({ ch, children }: { ch: number[]; children: React.ReactNode 
 type Marks = React.RefObject<HTMLDivElement | null>;
 // A label in the 3D scene that only shows while one of its chapters is on screen.
 // Portalled outside the scroller: by default drei puts Html inside it, where off-screen labels stretch the scroll area.
-function Label({ at, ch, layer, children, className = 'story-mark' }: { at: [number, number, number]; ch: number | number[]; layer: Marks; children: React.ReactNode; className?: string }) {
+// `when` (optional) hides it on top of that, e.g. once the group it names is empty.
+function Label({ at, ch, layer, children, className = 'story-mark', when }: { at: [number, number, number]; ch: number | number[]; layer: Marks; children: React.ReactNode; className?: string; when?: () => boolean }) {
   const el = useRef<HTMLDivElement>(null);
   const chs = Array.isArray(ch) ? ch : [ch];
   useFrame(() => {
     if (!el.current) return;
-    const o = Math.max(...chs.map(presence));
+    const o = when && !when() ? 0 : Math.max(...chs.map(presence));
     el.current.style.opacity = String(o);
     el.current.style.visibility = o < 0.02 ? 'hidden' : 'visible';
   });
@@ -643,7 +728,7 @@ function Sky() {
   );
 }
 
-function World({ marks, layout, tiers }: { marks: Marks; layout: Layout; tiers: Record<Tier, number> }) {
+function World({ marks, layout, tiers, atRisk }: { marks: Marks; layout: Layout; tiers: Record<Tier, number>; atRisk: number }) {
   return (
     <group>
       <Sky />
@@ -665,6 +750,8 @@ function World({ marks, layout, tiers }: { marks: Marks; layout: Layout; tiers: 
           {TIER_NAME[t]}<b style={{ color: TIER_HEX[t] }}>{tiers[t].toLocaleString('id-ID')}</b>
         </Label>
       ))}
+      <Label at={T(WAIT_X0 + 0.9, 1.2, DESK_Z0 - 2.2)} ch={7} layer={marks} className="story-chip" when={() => story.capacity < atRisk}>Belum terjangkau</Label>
+      <Label at={T(DESK_X0 + (DESKS_PER_ROW - 1) * DESK_W / 2, -0.3, DESK_Z0 + 0.7)} ch={7} layer={marks} className="story-key">1 konselor = {PER_COUNSELOR / REP} figur = {PER_COUNSELOR} mahasiswa</Label>
       {layout.imd.map((g, k) => (
         <group key={g.group}>
           <Label at={T(PX + (k - 4) * IMD_GAP, barTop(g.n, 56) + 0.5, 0)} ch={8} layer={marks} className="story-chip">{Math.round((g.flagged / g.n) * 100)}%</Label>
@@ -679,6 +766,7 @@ function World({ marks, layout, tiers }: { marks: Marks; layout: Layout; tiers: 
 // The picture is always pushed to the right half, opposite the chapter text.
 // share of the screen width the picture is pushed right, away from the chapter text
 const PUSH = 0.157;
+const deskRows = { value: 1 };   // rows of counselor desks in use, eased (the capacity shot frames them)
 function Rig() {
   const a = useMemo(() => new THREE.Vector3(), []);
   const b = useMemo(() => new THREE.Vector3(), []);
@@ -699,13 +787,18 @@ function Rig() {
       case 4: setT(p, PX - 0.5, 13, 9); setT(l, PX - 0.5, 0, -3.2); break;
       case 5: setT(p, PX - 1, 7.5, 9); setT(l, PX - 0.6, 0.2, 0); break;
       case 6: setT(p, PX, 9, 38); setT(l, PX, 5.2, 0); z.zoom = 1.9; z.pan = 1.2; break;
-      case 7: setT(p, PX, 4.6, 19); setT(l, PX, 0.2, 4); break;
+      case 7: {   // the desks from the front and above; pulls back when the slider adds rows of desks
+        const extra = Math.max(0, deskRows.value - 2);
+        setT(p, PX - 0.3, 9 + extra * 1.2, 13 + extra * 1.5); setT(l, PX - 0.3, 0, 1 - extra * 1.1);
+        z.zoom = 1.2; z.pan = 1.12; break;
+      }
       case 8: setT(p, PX, 9.5, 42); setT(l, PX, 5.4, 0); z.zoom = 2; z.pan = 1.2; break;
       default: setT(p, PX, 17, 30); setT(l, PX, 2.4, 0); z.zoom = 1.85; z.pan = 0.85;
     }
   };
-  useFrame(({ camera, size, scene }) => {
+  useFrame(({ camera, size, scene }, dt) => {
     const cam = camera as THREE.PerspectiveCamera, cam0 = cam;
+    deskRows.value += (story.capacity / (PER_COUNSELOR * DESKS_PER_ROW) - deskRows.value) * (1 - Math.exp(-dt * 3));
     const { i, w } = beat(story.offset);
     shot(i, a, la, za); shot(i + 1, b, lb, zb);
     const zoom = za.zoom + (zb.zoom - za.zoom) * w, pan = za.pan + (zb.pan - za.pan) * w;
@@ -768,8 +861,8 @@ function Capacity({ n, capacity, atRisk }: { n: number; capacity: CapacityPoint[
       <p className="big"><b>{k}</b> konselor bisa menghubungi <b>{reach.toLocaleString('id-ID')}</b> mahasiswa paling berisiko.</p>
       <label className="story-slider">
         <span>Jumlah konselor</span>
-        <input type="range" min={1} max={60} value={k} aria-label="Jumlah konselor"
-          style={{ '--fill': `${((k - 1) / 59) * 100}%` } as React.CSSProperties}
+        <input type="range" min={1} max={MAX_COUNSELORS} value={k} aria-label="Jumlah konselor"
+          style={{ '--fill': `${((k - 1) / (MAX_COUNSELORS - 1)) * 100}%` } as React.CSSProperties}
           onChange={(e) => { const v = +e.target.value; setK(v); story.capacity = Math.min(n, v * PER_COUNSELOR); }} />
       </label>
       <p className="reach"><b>{Math.round(pt.precision * 100)}%</b> tepat sasaran, menjangkau <b>{helped.toLocaleString('id-ID')}</b> dari sekitar <b>{atRisk.toLocaleString('id-ID')}</b> yang berisiko.</p>
@@ -791,6 +884,7 @@ export default function Story({ students, stats, capacity }: { students: Student
   const marks = useRef<HTMLDivElement>(null);
   const layout = useLayout(students);
   const poor = layout.imd[0], rich = layout.imd[layout.imd.length - 1];
+  const atRisk = Math.round(stats.n * stats.baseRate);
   return (
     <>
     <div ref={marks} className="story-marks" />
@@ -801,8 +895,9 @@ export default function Story({ students, stats, capacity }: { students: Student
       <hemisphereLight args={['#C9D5FF', '#3A4590', 1.9]} />
       <directionalLight position={[12, 14, 8]} intensity={1.6} />
       <ScrollControls pages={PAGES} damping={0.25}>
-        <World marks={marks} layout={layout} tiers={stats.tiers} />
-        <Crowd students={students} layout={layout} />
+        <World marks={marks} layout={layout} tiers={stats.tiers} atRisk={atRisk} />
+        <Crowd students={students} layout={layout} atRisk={atRisk} />
+        <Counselors />
         <Guide />
         <Rig />
         <Driver />
@@ -845,7 +940,7 @@ export default function Story({ students, stats, capacity }: { students: Student
         </section>
         <section className="chapter">
           <h2><em className="solo">Kapasitas</em></h2>
-          <Capacity n={stats.n} capacity={capacity} atRisk={Math.round(stats.n * stats.baseRate)} />
+          <Capacity n={stats.n} capacity={capacity} atRisk={atRisk} />
         </section>
         <section className="chapter">
           <h2><em className="solo">Kesenjangan</em></h2>
