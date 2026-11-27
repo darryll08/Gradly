@@ -23,7 +23,7 @@ export type Shap = { model: string; base: number; groups: [string, number][]; to
 export const SHAP_GROUP: Record<string, string> = {
   tugas: 'Pengumpulan tugas', nilai: 'Nilai tugas', telat: 'Ketepatan waktu tugas', aktif: 'Keaktifan di LMS',
   waktu: 'Kapan mulai & berhenti muncul', modul: 'Modul & semester', pendidikan: 'Pendidikan terakhir',
-  ekonomi: 'Ekonomi wilayah (IMD)', beban: 'Beban SKS', riwayat: 'Percobaan sebelumnya', demografi: 'Umur, wilayah, gender, disabilitas',
+  ekonomi: 'Ekonomi wilayah (IMD)', beban: 'Beban studi', riwayat: 'Percobaan sebelumnya', demografi: 'Umur, wilayah, gender, disabilitas',
 };
 export type Signal ={ label: string; rate: number; n: number; kind: 'risk' | 'protect' };
 export type CapacityPoint = { pct: number; precision: number; recall: number };
@@ -78,6 +78,6 @@ export const PLAYBOOK: Record<string, string> = {
   latestart: 'Sesi orientasi singkat: cara memakai LMS dan apa yang dikejar dulu.',
   lowscore: 'Rujuk ke kelas remedial atau jam konsultasi dosen untuk materi tugas.',
   repeat: 'Rencana studi bersama dosen PA: apa yang beda dari percobaan sebelumnya.',
-  heavy: 'Tinjau beban SKS bersama dosen PA; pertimbangkan mengurangi modul.',
+  heavy: 'Tinjau beban studi bersama dosen PA; pertimbangkan mengurangi modul.',
   prevnoscore: 'Pengulang tanpa nilai sebelumnya: dampingi sejak minggu pertama, jangan tunggu.',
 };

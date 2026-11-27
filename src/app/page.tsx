@@ -84,7 +84,7 @@ export default function Ringkasan() {
           <>
             <Link className="stat" href="/mahasiswa"><b className="num"><Counter value={s.nTest} /></b><span>mahasiswa diamati</span></Link>
             <Link className="stat" href="/mahasiswa?pred=1"><b className="num risk"><Counter value={s.flagged} /></b><span>diperkirakan gagal, termasuk {n(real.twinsFlagged)} akun kembar</span></Link>
-            <Link className="stat" href="/mahasiswa?tier=merah"><b className="num"><Counter value={real.tiers.merah} /></b><span>kritis, hubungi dalam 48 jam</span></Link>
+            <Link className="stat" href="/mahasiswa?tier=merah"><b className="num"><Counter value={real.tiers.merah} /></b><span>kritis siap dihubungi ({n(s.tiers.merah)} termasuk {n(real.twinsKritis)} akun kembar)</span></Link>
             <Link className="stat" href="/mahasiswa?sinyal=vanished"><b className="num"><Counter value={real.vanished} /></b><span>menghilang sebelum hari ke-14</span></Link>
             <Link className="stat" href="/mahasiswa?kembar=1"><b className="num"><Counter value={s.ghost} /></b><span>akun kembar, cek data dulu</span></Link>
           </>

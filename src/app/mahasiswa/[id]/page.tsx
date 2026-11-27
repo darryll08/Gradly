@@ -30,7 +30,7 @@ function detail(k: string, s: Student): string {
     case 'modul': return `${s.mod} · ${PRES_LABEL[s.pres]}`;
     case 'pendidikan': return s.edu;
     case 'ekonomi': return `IMD ${s.imd}`;
-    case 'beban': return `${s.credits} SKS`;
+    case 'beban': return `${s.credits} kredit`;
     case 'riwayat': return s.att > 0 ? `Percobaan ke-${s.att + 1}` : 'Percobaan pertama';
     case 'telat': return 'Selisih waktu kumpul terhadap batas';
     default: return `${s.age} · ${s.region}`;
@@ -82,7 +82,7 @@ export default function Profil({ params }: { params: Promise<{ id: string }> }) 
           <Link className="crumb" href="/mahasiswa">← Daftar Mahasiswa</Link>
           <span className={`eyebrow${s.tier === 'hijau' ? '' : ' risk'}`}>{TIER_LABEL[s.tier]} · {TIER_HINT[s.tier]}</span>
           <h1>Mahasiswa {s.id}</h1>
-          <p>{s.mod} · {PRES_LABEL[s.pres]} · {s.att > 0 ? `percobaan ke-${s.att + 1}` : 'percobaan pertama'} · {s.credits} SKS</p>
+          <p>{s.mod} · {PRES_LABEL[s.pres]} · {s.att > 0 ? `percobaan ke-${s.att + 1}` : 'percobaan pertama'} · {s.credits} kredit</p>
         </div>
         <div className="actions"><Link className="btn" href={`/cek-risiko?dari=${s.id}`}>Simulasikan perubahan</Link></div>
       </div>

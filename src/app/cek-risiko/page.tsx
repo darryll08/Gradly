@@ -24,7 +24,7 @@ const LEVERS: { key: string; label: string; fields: string[] }[] = [
   { key: 'weeks', label: 'Aktivitas per minggu', fields: ['week1_interactions', 'week2_interactions', 'week3_interactions', 'week4_interactions'] },
   { key: 'timing', label: 'Kapan mulai & berhenti aktif', fields: ['first_activity_day', 'last_activity_day'] },
   { key: 'repeat', label: 'Riwayat mengulang', fields: ['num_of_prev_attempts'] },
-  { key: 'credits', label: 'Beban SKS', fields: ['studied_credits'] },
+  { key: 'credits', label: 'Beban studi', fields: ['studied_credits'] },
 ];
 
 function fromStudent(s: Student, ref: Record<string, number>): LiveInput {
@@ -44,7 +44,7 @@ function changes(a: LiveInput, b: LiveInput): string[] {
   if (diff(['active_days'])) out.push(`aktif ${b.active_days} hari`);
   if (diff(['week1_interactions', 'week2_interactions', 'week3_interactions', 'week4_interactions'])) out.push(`klik minggu ke-4 jadi ${b.week4_interactions}`);
   if (diff(['first_activity_day', 'last_activity_day'])) out.push(`tetap aktif sampai hari ke-${b.last_activity_day}`);
-  if (diff(['studied_credits'])) out.push(`beban ${b.studied_credits} SKS`);
+  if (diff(['studied_credits'])) out.push(`beban ${b.studied_credits} kredit`);
   return out.length ? out : ['profil diubah'];
 }
 
@@ -154,7 +154,7 @@ function Form() {
               {select('gender', 'Jenis kelamin', { F: 'Perempuan', M: 'Laki-laki' })}
               {select('disability', 'Disabilitas', { N: 'Tidak', Y: 'Ya' })}
               {slider('num_of_prev_attempts', 'Sudah pernah mengambil modul ini', 0, 4, '×')}
-              {slider('studied_credits', 'Beban studi', 30, 360, ' SKS')}
+              {slider('studied_credits', 'Beban studi', 30, 360, ' kredit')}
             </div>
           )}
           {step === 1 && (
@@ -196,11 +196,12 @@ function Form() {
 
         <div className="stack" style={{ position: 'sticky', top: 'calc(var(--topbar) + 24px)', alignSelf: 'start' }}>
           <section className="card" style={{ textAlign: 'center' }}>
-            <div className="card-head" style={{ justifyContent: 'center' }}><h2>Perkiraan risiko</h2></div>
+            <div className="card-head" style={{ justifyContent: 'center' }}><h2>Perkiraan model simulasi</h2></div>
             <Gauge p={p} label={tierOf(p) === 'hijau' ? 'Tidak perlu tindakan' : tierOf(p) === 'kuning' ? 'Pantau tiap minggu' : tierOf(p) === 'oranye' ? 'Masuk pendampingan' : 'Hubungi dalam 48 jam'} />
             <p className="muted num" style={{ marginTop: 6, minHeight: 20 }}>
-              {changed ? <>Dari {pct(p0, 0)} menjadi <b style={{ color: 'var(--text)' }}>{pct(p, 0)}</b> ({p < p0 ? '−' : '+'}{Math.abs(Math.round((p - p0) * 100))} poin)</> : 'Geser data di kiri untuk melihat perubahannya'}
+              {changed ? <>Dari {pct(p0, 0)} menjadi <b style={{ color: 'var(--text)' }}>{pct(p, 0)}</b> ({p < p0 ? '−' : '+'}{Math.abs(Math.round(p * 100) - Math.round(p0 * 100))} poin)</> : 'Geser data di kiri untuk melihat perubahannya'}
             </p>
+            <p className="notice" style={{ marginTop: 4 }}>Model simulasi lebih ringkas dari model utama, jadi angkanya bisa sedikit berbeda dari profil. Hasil mengikuti pola angkatan lalu, bukan jaminan.</p>
             {dari && changed && p < p0 && (planned ? (
               <div className="plan-saved">
                 <span className="plan-check" aria-hidden>✓</span>
@@ -229,9 +230,6 @@ function Form() {
               Poin menunjukkan perubahan risiko bila faktor tersebut setara dengan mahasiswa yang lulus.
             </p>
           </section>
-          <p className="notice">
-            Simulasi memakai model ringkas. Skor resmi tiap mahasiswa tetap mengikuti <Link href="/mahasiswa" style={{ textDecoration: 'underline' }}>Daftar Mahasiswa</Link>.
-          </p>
         </div>
       </div>
     </>
